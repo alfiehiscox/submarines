@@ -4,7 +4,10 @@ import (
 	"errors"
 	"fmt"
 	"math/rand/v2"
+	"os"
+	"os/exec"
 	"strings"
+	"time"
 )
 
 const (
@@ -23,6 +26,10 @@ type Orientation string
 // - x  is between 0 and BOARD_WIDHT - 1
 // - y  is between 0 and BOARD_HEIGHT - 1
 type Coordinate [2]int
+
+func (c Coordinate) ToIndex() int {
+	return c[1]*BOARD_WIDTH + c[0]
+}
 
 func NewCoordinate(x, y int) (Coordinate, error) {
 	if x < 0 || x >= BOARD_WIDTH {
@@ -104,38 +111,36 @@ func get_random_orientation() Orientation {
 func get_random_coord(size int) Coordinate {
 	x := rand.IntN(BOARD_WIDTH - size)
 	y := rand.IntN(BOARD_HEIGHT - size)
-	//fmt.Printf("Coord{%d,%d} - ", x, y)
 	return Coordinate{x, y}
 }
 
 func (p *Player) place_ship(size int, orientation Orientation, coord Coordinate) error {
-	x, y := coord[0], coord[1]
-	idx := y*BOARD_WIDTH + x
+
+	if err := verify_coordinate(size, orientation, coord); err != nil {
+		return err
+	}
+
+	idx := coord.ToIndex()
 
 	switch orientation {
 	case HORIZONTAL:
 		for i := 0; i < size; i++ {
 			cell := p.player_board[idx+i]
-			// fmt.Printf("index=%d - cell=%v - ", idx+i, cell)
 			if cell.occupied {
 				msg := fmt.Sprintf("Cell at %v already occupied", coord)
-				//fmt.Print(msg + "\n")
 				return errors.New(msg)
 			}
 		}
 	case VERTICAL:
 		for i := 0; i < size; i++ {
 			cell := p.player_board[idx+(i*BOARD_WIDTH)]
-			// fmt.Printf("index=%d - cell=%v - ", idx+(i*BOARD_WIDTH), cell)
 			if cell.occupied {
 				msg := fmt.Sprintf("Cell at %v already occupied", coord)
-				//fmt.Print(msg + "\n")
 				return errors.New(msg)
 			}
 		}
 	default:
 		msg := fmt.Sprintf("Unknown orientation: %s", orientation)
-		//fmt.Print(msg + "\n")
 		return errors.New(msg)
 	}
 
@@ -150,34 +155,27 @@ func (p *Player) place_ship(size int, orientation Orientation, coord Coordinate)
 		}
 	}
 
-	// msg := fmt.Sprintf("Placed Ship: %v [%s]", coord, orientation)
-	//fmt.Println(msg)
-
 	return nil
 }
 
 func verify_coordinate(size int, orientation Orientation, coord Coordinate) error {
 	if coord[0] < 0 || coord[1] < 0 {
 		msg := fmt.Sprintf("Carrier at %v [%s] is off the board", coord, orientation)
-		//fmt.Print(msg + "\n")
 		return errors.New(msg)
 	}
 
 	if coord[0] > BOARD_WIDTH || coord[1] > BOARD_HEIGHT {
 		msg := fmt.Sprintf("Carrier at %v [%s] is off the board", coord, orientation)
-		//fmt.Print(msg + "\n")
 		return errors.New(msg)
 	}
 
 	if orientation == HORIZONTAL && coord[0] > BOARD_WIDTH-size {
 		msg := fmt.Sprintf("Carrier at %v [%s] is off the board", coord, orientation)
-		//fmt.Print(msg + "\n")
 		return errors.New(msg)
 	}
 
 	if orientation == VERTICAL && coord[1] > BOARD_HEIGHT-size {
 		msg := fmt.Sprintf("Carrier at %v [%s] is off the board", coord, orientation)
-		//fmt.Print(msg + "\n")
 		return errors.New(msg)
 	}
 
@@ -235,22 +233,27 @@ func (p *Player) randomize_ship_placement(size int) error {
 // Places ships on player_board in random fashion
 func (p *Player) randomize_placement() error {
 
+	// Carrier
 	if err := p.randomize_ship_placement(5); err != nil {
 		return err
 	}
 
+	// Battleship
 	if err := p.randomize_ship_placement(4); err != nil {
 		return err
 	}
 
+	// Cruiser
 	if err := p.randomize_ship_placement(3); err != nil {
 		return err
 	}
 
+	// Submarine
 	if err := p.randomize_ship_placement(3); err != nil {
 		return err
 	}
 
+	// Destroyer
 	if err := p.randomize_ship_placement(2); err != nil {
 		return err
 	}
@@ -260,72 +263,51 @@ func (p *Player) randomize_placement() error {
 
 // Places 5 square ship on player_board. Errors if invalid placement.
 func (p *Player) place_carrier(orientation Orientation, coord Coordinate) error {
-	if err := verify_coordinate(5, orientation, coord); err != nil {
-		return err
-	}
-
-	if err := p.place_ship(5, orientation, coord); err != nil {
-		return err
-	}
-
-	return nil
+	return p.place_ship(5, orientation, coord)
 }
 
 // Places 4 square ship on player_board. Errors if invalid placement.
 func (p *Player) place_battleship(orientation Orientation, coord Coordinate) error {
-	if err := verify_coordinate(4, orientation, coord); err != nil {
-		return err
-	}
-
-	if err := p.place_ship(4, orientation, coord); err != nil {
-		return err
-	}
-
-	return nil
+	return p.place_ship(4, orientation, coord)
 }
 
 // Places 3 square ship on player_board. Errors if invalid placement.
 func (p *Player) place_cruiser_or_submarine(orientation Orientation, coord Coordinate) error {
-	if err := verify_coordinate(3, orientation, coord); err != nil {
-		return err
-	}
-
-	if err := p.place_ship(3, orientation, coord); err != nil {
-		return err
-	}
-
-	return nil
+	return p.place_ship(3, orientation, coord)
 }
 
 // Places 2 square ship on player_board. Errors if invalid placement.
 func (p *Player) place_destroyer(orientation Orientation, coord Coordinate) error {
-	if err := verify_coordinate(2, orientation, coord); err != nil {
-		return err
-	}
-
-	if err := p.place_ship(2, orientation, coord); err != nil {
-		return err
-	}
-
-	return nil
+	return p.place_ship(2, orientation, coord)
 }
 
 // Get's a player's coordinate guess checking against their
 // previous turns (i.e. target_board)
 func (p *Player) get_guess() Coordinate {
-	return Coordinate{0, 0}
+	return get_random_coord(0)
 }
 
 // Check's if coordinate hits a ship in player_board
 func (p *Player) check_hit(coordinate Coordinate) bool {
-	return false
+	return p.player_board[coordinate.ToIndex()].occupied
 }
 
-// Mark an attempt on target_board
-func (p *Player) mark_target_attempt(coordiant Coordinate, hit bool) {}
+// Mark an attempt on target_board.
+func (p *Player) mark_target_attempt(coordinate Coordinate, hit bool) {
+	p.target_board[coordinate.ToIndex()].chosen = hit
+}
 
 // Mark an attempt on player_board
-func (p *Player) mark_player_attempt(coordiant Coordinate, hit bool) {}
+func (p *Player) mark_player_attempt(coordinate Coordinate, hit bool) {
+	p.player_board[coordinate.ToIndex()].chosen = hit
+}
+
+// Generalise for Windows
+func Clear() error {
+	cmd := exec.Command("clear")
+	cmd.Stdout = os.Stdout
+	return cmd.Run()
+}
 
 func main() {
 	p1 := NewPlayer("player 1")
@@ -339,6 +321,9 @@ func main() {
 	enemy_player := p2
 
 	for {
+		if err := Clear(); err != nil {
+			panic(err)
+		}
 
 		coord := turn_player.get_guess()
 
@@ -352,6 +337,7 @@ func main() {
 		}
 
 		turn_player, enemy_player = enemy_player, turn_player
+		time.Sleep(time.Second)
 	}
 
 	if winner != nil {
@@ -360,4 +346,12 @@ func main() {
 }
 
 // checks if the target_board has hit all ships on enemy_board
-func check_winner(target_board, enemy_board Board) bool { return false }
+func check_winner(target_board, enemy_board Board) bool {
+	for i := range enemy_board {
+		if enemy_board[i].occupied != target_board[i].chosen {
+			return false
+		}
+	}
+
+	return true
+}

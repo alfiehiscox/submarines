@@ -269,3 +269,148 @@ func TestRandomizePlacementLimit(t *testing.T) {
 		t.Fatalf("expected error, got nil")
 	}
 }
+
+// TODO: Get Guess (probs needs DI)
+func TestGetGuess(_ *testing.T) {}
+
+func TestCheckHit(t *testing.T) {
+	p := NewPlayer("test_player")
+
+	if err := p.place_carrier(HORIZONTAL, Coordinate{0, 0}); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := p.place_battleship(VERTICAL, Coordinate{0, 1}); err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		input    Coordinate
+		expected bool
+	}{
+		// True
+		{Coordinate{0, 0}, true},
+		{Coordinate{1, 0}, true},
+		{Coordinate{2, 0}, true},
+		{Coordinate{3, 0}, true},
+		{Coordinate{4, 0}, true},
+		{Coordinate{0, 1}, true},
+		{Coordinate{0, 2}, true},
+		{Coordinate{0, 3}, true},
+		{Coordinate{0, 4}, true},
+
+		// False
+		{Coordinate{5, 0}, false},
+		{Coordinate{6, 0}, false},
+		{Coordinate{7, 0}, false},
+		{Coordinate{8, 0}, false},
+		{Coordinate{0, 5}, false},
+		{Coordinate{9, 6}, false},
+		{Coordinate{3, 3}, false},
+		{Coordinate{8, 3}, false},
+		{Coordinate{2, 9}, false},
+	}
+
+	for _, test := range tests {
+		actual := p.check_hit(test.input)
+		if actual != test.expected {
+			t.Fatalf("%v :: Exp=%v, Act=%v", test.input, test.expected, actual)
+		}
+	}
+}
+
+func TestMarkTargetAttempt(t *testing.T) {
+	p := NewPlayer("test_player")
+	coord, err := NewCoordinate(2, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if p.target_board[coord.ToIndex()].chosen {
+		t.Fatalf("Expected %v to start an unoccupied", coord)
+	}
+
+	p.mark_target_attempt(coord, true)
+	if !p.target_board[coord.ToIndex()].chosen {
+		t.Fatalf("Expected %v to then be occupied", coord)
+	}
+
+	p.mark_target_attempt(coord, false)
+	if p.target_board[coord.ToIndex()].chosen {
+		t.Fatalf("Expected %v to then be unoccupied", coord)
+	}
+}
+
+func TestMarkPlayerAttempt(t *testing.T) {
+	p := NewPlayer("test_player")
+	coord, err := NewCoordinate(1, 8)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if p.player_board[coord.ToIndex()].chosen {
+		t.Fatalf("Expected %v to start an unoccupied", coord)
+	}
+
+	p.mark_player_attempt(coord, true)
+	if !p.player_board[coord.ToIndex()].chosen {
+		t.Fatalf("Expected %v to then be occupied", coord)
+	}
+
+	p.mark_player_attempt(coord, false)
+	if p.player_board[coord.ToIndex()].chosen {
+		t.Fatalf("Expected %v to then be unoccupied", coord)
+	}
+}
+
+func TestCheckWinnerSuccess(t *testing.T) {
+	p1 := NewPlayer("test_player_1")
+	if err := p1.place_carrier(HORIZONTAL, Coordinate{0, 0}); err != nil {
+		t.Fatal(err)
+	}
+	if err := p1.place_battleship(VERTICAL, Coordinate{0, 1}); err != nil {
+		t.Fatal(err)
+	}
+	t.Log(p1.player_board.String())
+
+	p2 := NewPlayer("test_player_1")
+	p2.mark_target_attempt(Coordinate{0, 0}, true)
+	p2.mark_target_attempt(Coordinate{1, 0}, true)
+	p2.mark_target_attempt(Coordinate{2, 0}, true)
+	p2.mark_target_attempt(Coordinate{3, 0}, true)
+	p2.mark_target_attempt(Coordinate{4, 0}, true)
+	p2.mark_target_attempt(Coordinate{0, 1}, true)
+	p2.mark_target_attempt(Coordinate{0, 2}, true)
+	p2.mark_target_attempt(Coordinate{0, 3}, true)
+	p2.mark_target_attempt(Coordinate{0, 4}, true)
+
+	if !check_winner(p2.target_board, p1.player_board) {
+		t.Fatalf("Should have been won")
+	}
+}
+
+func TestCheckWinnerFailure(t *testing.T) {
+	p1 := NewPlayer("test_player_1")
+	if err := p1.place_carrier(HORIZONTAL, Coordinate{0, 1}); err != nil {
+		t.Fatal(err)
+	}
+	if err := p1.place_battleship(VERTICAL, Coordinate{3, 4}); err != nil {
+		t.Fatal(err)
+	}
+	t.Log(p1.player_board.String())
+
+	p2 := NewPlayer("test_player_1")
+	p2.mark_target_attempt(Coordinate{0, 0}, true)
+	p2.mark_target_attempt(Coordinate{1, 0}, true)
+	p2.mark_target_attempt(Coordinate{2, 0}, true)
+	p2.mark_target_attempt(Coordinate{3, 0}, true)
+	p2.mark_target_attempt(Coordinate{4, 0}, true)
+	p2.mark_target_attempt(Coordinate{0, 1}, true)
+	p2.mark_target_attempt(Coordinate{0, 2}, true)
+	p2.mark_target_attempt(Coordinate{0, 3}, true)
+	p2.mark_target_attempt(Coordinate{0, 4}, true)
+
+	if check_winner(p2.target_board, p1.player_board) {
+		t.Fatalf("Should NOT have been won")
+	}
+}
