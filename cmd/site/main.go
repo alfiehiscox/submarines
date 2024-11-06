@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
 	"time"
 
@@ -85,6 +87,7 @@ func (s *Server) setUpRoutes() {
 	// Page Routes
 	s.mux.Get("/", ghttp.Adapt(IndexHandler))
 	s.mux.Get("/place-ships", ghttp.Adapt(PlaceShipsHandler))
+	s.mux.Get("/ship-select/{id}", ghttp.Adapt(ShipSelectHandler))
 }
 
 func (s *Server) Start() error {
@@ -115,4 +118,19 @@ func PlaceShipsHandler(w http.ResponseWriter, r *http.Request) (Node, error) {
 
 func IndexHandler(w http.ResponseWriter, r *http.Request) (Node, error) {
 	return html.Index(), nil
+}
+
+func ShipSelectHandler(w http.ResponseWriter, r *http.Request) (Node, error) {
+
+	id_string := chi.URLParam(r, "id")
+	id, err := strconv.Atoi(id_string)
+	if err != nil {
+		return nil, err
+	}
+
+	if id < 1 || id > 5 {
+		return nil, errors.New("ship id unavailable")
+	}
+
+	return html.ShipGallery(id), nil
 }
